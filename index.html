@@ -3,25 +3,25 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>98.css Kanban Board</title>
+        <title>Kanban Board</title>
         <link rel="stylesheet" href="https://unpkg.com/98.css" />
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
         <style>
             body {
-                padding: 20px;
+                padding: 10px;
                 background-color: #008080;
             }
 
             .kanban-board {
                 display: flex;
                 justify-content: space-around;
-                gap: 20px;
+                gap: 10px;
                 margin-top: 20px;
             }
 
             .column {
-                width: 250px;
+                width: 300px;
                 background-color: #c0c0c0;
                 border: 2px solid #808080;
                 border-radius: 5px;
@@ -45,6 +45,7 @@
                 border: 1px solid #808080;
                 margin-bottom: 10px;
                 padding: 5px;
+                font-weight: bold;
                 cursor: move;
             }
 
@@ -58,7 +59,7 @@
     <body>
         <div class="window" style="width: 100%">
             <div class="title-bar">
-                <div class="title-bar-text">98.css Kanban Board</div>
+                <div class="title-bar-text">Kanban Board</div>
                 <div class="title-bar-controls">
                     <button aria-label="Minimize"></button>
                     <button aria-label="Maximize"></button>
@@ -73,35 +74,20 @@
                         placeholder="Enter a new task"
                     />
                     <button id="add-task">Add Task</button>
-                    <button id="export-pdf">Export as PDF</button>
+                    <button id="export-pdf">Export PDF</button>
                 </div>
                 <div class="kanban-board">
                     <div class="column">
                         <div class="column-header">To Do</div>
-                        <div class="task-list" id="todo">
-                            <div class="task" draggable="true">
-                                Create project plan
-                            </div>
-                            <div class="task" draggable="true">
-                                Design UI mockups
-                            </div>
-                        </div>
+                        <div class="task-list" id="todo"></div>
                     </div>
                     <div class="column">
                         <div class="column-header">In Progress</div>
-                        <div class="task-list" id="inprogress">
-                            <div class="task" draggable="true">
-                                Implement backend API
-                            </div>
-                        </div>
+                        <div class="task-list" id="inprogress"></div>
                     </div>
                     <div class="column">
                         <div class="column-header">Done</div>
-                        <div class="task-list" id="done">
-                            <div class="task" draggable="true">
-                                Set up development environment
-                            </div>
-                        </div>
+                        <div class="task-list" id="done"></div>
                     </div>
                 </div>
             </div>
@@ -113,32 +99,70 @@
                 const newTaskInput = document.getElementById("new-task");
                 const exportPdfBtn = document.getElementById("export-pdf");
 
+                loadTasks();
+
                 addTaskBtn.addEventListener("click", () => {
                     const taskText = newTaskInput.value.trim();
                     if (taskText) {
-                        const newTask = document.createElement("div");
-                        newTask.className = "task";
-                        newTask.draggable = true;
-                        newTask.textContent = taskText;
+                        const newTask = createTaskElement(taskText);
                         document.getElementById("todo").appendChild(newTask);
                         newTaskInput.value = "";
-                        addDragListeners(newTask);
+                        saveTasks();
                     }
                 });
 
                 exportPdfBtn.addEventListener("click", exportToPdf);
 
-                const tasks = document.querySelectorAll(".task");
                 const columns = document.querySelectorAll(".task-list");
-
-                tasks.forEach((task) => {
-                    addDragListeners(task);
-                });
 
                 columns.forEach((column) => {
                     column.addEventListener("dragover", allowDrop);
                     column.addEventListener("drop", drop);
                 });
+
+                function createTaskElement(taskText) {
+                    const newTask = document.createElement("div");
+                    newTask.className = "task";
+                    newTask.draggable = true;
+                    newTask.textContent = taskText;
+                    newTask.addEventListener("dragstart", drag);
+                    return newTask;
+                }
+
+                function saveTasks() {
+                    const tasks = {
+                        todo: [],
+                        inprogress: [],
+                        done: [],
+                    };
+
+                    document
+                        .querySelectorAll(".task-list")
+                        .forEach((column) => {
+                            const columnId = column.id;
+                            column.querySelectorAll(".task").forEach((task) => {
+                                tasks[columnId].push(task.textContent);
+                            });
+                        });
+
+                    localStorage.setItem("tasks", JSON.stringify(tasks));
+                }
+
+                function loadTasks() {
+                    const tasks = JSON.parse(localStorage.getItem("tasks")) || {
+                        todo: ["Create project plan", "Design UI mockups"],
+                        inprogress: ["Implement backend API"],
+                        done: ["Set up development environment"],
+                    };
+
+                    Object.keys(tasks).forEach((columnId) => {
+                        const column = document.getElementById(columnId);
+                        tasks[columnId].forEach((taskText) => {
+                            const taskElement = createTaskElement(taskText);
+                            column.appendChild(taskElement);
+                        });
+                    });
+                }
 
                 function addDragListeners(task) {
                     task.addEventListener("dragstart", drag);
@@ -166,12 +190,8 @@
                     const sourceElement = document.getElementById(sourceId);
 
                     if (event.target.className === "task-list") {
-                        const newTask = document.createElement("div");
-                        newTask.className = "task";
-                        newTask.draggable = true;
-                        newTask.textContent = data;
+                        const newTask = createTaskElement(data);
                         event.target.appendChild(newTask);
-                        addDragListeners(newTask);
 
                         // Remove the task from the source column
                         const taskToRemove = Array.from(
@@ -180,6 +200,8 @@
                         if (taskToRemove) {
                             sourceElement.removeChild(taskToRemove);
                         }
+
+                        saveTasks();
                     }
                 }
 
@@ -211,4 +233,3 @@
         </script>
     </body>
 </html>
-```
